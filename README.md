@@ -18,8 +18,33 @@ A single-page audit testing app for financial data. Upload Excel ledgers or tria
   - unusual trial balance balances
   - text in amount columns
 
+## Sign-in & user management (Supabase)
+- Users sign in with a **username + password**. Passwords are stored as bcrypt hashes in Supabase Auth (`auth.users`). Internally, each username maps to `<username>@auditapps.example.com`.
+- New users must choose their own password the first time they sign in.
+- **Admins** have a **Users** page where they can add users with an initial password, edit names and roles, reset passwords, and deactivate or reactivate users. **Members** can run tests and manage issues.
+- Seeded accounts (initial password `password`, changed at first sign-in):
+
+  | Username | Role |
+  |---|---|
+  | priya | admin |
+  | dan | member |
+  | marcus | member |
+
 ## Data storage
-Everything is stored in the browser's **localStorage**. No data is sent to a server. Data stays in the one browser where it was entered, so use **Export backup / Import backup** on the Overview page to move it or keep a copy.
+All data is stored in Supabase and shared by every signed-in user. Changes sync in real time.
+
+| Table | Purpose |
+|---|---|
+| `profiles` | one row per user (username, full name, role, active, must_change_password), linked 1:1 to `auth.users` |
+| `engagements` | shared engagement settings: entity, year end, materiality (single row) |
+| `issues` | issue tracker rows, with `created_by` / `updated_by` audit stamps |
+| `audit_files` | uploaded workbooks, with parsed sheets stored as JSONB |
+
+Security:
+- **Row Level Security** is on for every table. Anonymous visitors can't read anything.
+- User management runs through `SECURITY DEFINER` functions (`admin_create_user`, `admin_set_password`, `admin_update_user`, `admin_set_active`), and each one checks that the caller is an admin.
+- The browser only holds the **publishable** key, which is safe to expose.
+- If someone used the app before sign-in was added, their old browser data is offered for import into the workspace the first time they sign in.
 
 ## Deploy to Vercel
 1. In Vercel, choose **Add New → Project** and import `aliciacxfei/Auditapps`.
@@ -30,9 +55,10 @@ Everything is stored in the browser's **localStorage**. No data is sent to a ser
 Open `index.html` in a browser, or serve the folder with `npx serve .`
 
 ## Try it
-Click **Load sample engagement** in the app. You can also upload `samples/Sample_Audit_Workbook.xlsx`; first set the financial year end to 31 Dec 2026 on the Overview page.
+Sign in, then click **Load sample engagement**. You can also upload `samples/Sample_Audit_Workbook.xlsx`; first set the financial year end to 31 Dec 2026 on the Overview page.
 
 ## External dependencies (CDN)
+- [supabase-js](https://github.com/supabase/supabase-js) 2.45.4 from jsDelivr, for auth and data
 - [SheetJS](https://sheetjs.com/) `xlsx` 0.18.5 from cdnjs, for reading Excel files
 - IBM Plex Sans / Mono from Google Fonts
 
